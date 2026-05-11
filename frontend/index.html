@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OpportunityIntel</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0f1a;
+    --card: rgba(255,255,255,0.04);
+    --card-hover: rgba(255,255,255,0.07);
+    --accent: #00d4ff;
+    --success: #39ff14;
+    --danger: #ff006e;
+    --text: #e2eaf6;
+    --text2: #7bafd4;
+    --border: rgba(255,255,255,0.08);
+    --blur: blur(12px);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── Top bar ─────────────────────────────────────────────────────── */
+  #topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: var(--blur);
+  }
+
+  #topbar h1 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+
+  #last-refresh {
+    color: var(--text2);
+    font-size: 13px;
+    font-family: monospace;
+  }
+
+  .top-actions { display: flex; gap: 10px; }
+
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  button:hover { opacity: 0.85; transform: translateY(-1px); }
+  button:active { transform: translateY(0); }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+  .btn-export {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  /* ── Filter bar ──────────────────────────────────────────────────── */
+  #filters {
+    position: sticky;
+    top: 57px;
+    z-index: 99;
+    background: var(--card);
+    backdrop-filter: var(--blur);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .filter-label {
+    font-size: 11px;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  input[type="text"], select {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 6px 10px;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input[type="text"]:focus, select:focus {
+    border-color: var(--accent);
+  }
+  select option { background: #1a2235; }
+
+  .slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  input[type="range"] {
+    width: 100px;
+    accent-color: var(--accent);
+  }
+  .slider-val {
+    font-family: monospace;
+    font-size: 13px;
+    color: var(--accent);
+    min-width: 36px;
+  }
+
+  .toggle-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .toggle {
+    width: 36px;
+    height: 20px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    top: 3px;
+    left: 3px;
+    transition: left 0.2s;
+  }
+  .toggle.on::after { left: 19px; }
+
+  #job-count {
+    margin-left: auto;
+    font-family: monospace;
+    font-size: 13px;
+    color: var(--text2);
+    white-space: nowrap;
+  }
+
+  .btn-reset {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  /* ── Table ───────────────────────────────────────────────────────── */
+  #table-wrap {
+    padding: 16px 24px;
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  th {
+    color: var(--text2);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    position: relative;
+  }
+  th.sortable { cursor: pointer; }
+  th.sortable:hover { color: var(--accent); }
+  th.sort-asc::after { content: ' ▲'; color: var(--accent); }
+  th.sort-desc::after { content: ' ▼'; color: var(--accent); }
+
+  tr.data-row {
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    transition: background 0.1s;
+  }
+  tr.data-row:nth-child(odd)  { background: rgba(255,255,255,0.02); }
+  tr.data-row:nth-child(even) { background: rgba(255,255,255,0.04); }
+  tr.data-row:hover {
+    background: rgba(0,212,255,0.06);
+    border-left: 3px solid var(--accent);
+  }
+  tr.data-row.has-red-flag { border-left: 3px solid var(--danger); }
+  tr.data-row.has-red-flag:hover { border-left: 3px solid var(--danger); }
+  tr.data-row.has-founding { border-left: 3px solid var(--success); }
+  tr.data-row.has-founding:hover { border-left: 3px solid var(--success); }
+
+  td {
+    padding: 8px 10px;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  td.td-title, td.td-notes { white-space: normal; max-width: 200px; }
+
+  /* Score bar */
+  .score-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 90px;
+  }
+  .score-bar {
+    height: 6px;
+    border-radius: 3px;
+    flex: 1;
+    background: rgba(255,255,255,0.08);
+    position: relative;
+  }
+  .score-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s;
+  }
+  .score-num {
+    font-family: monospace;
+    font-size: 12px;
+    min-width: 36px;
+    text-align: right;
+  }
+
+  /* Badges */
+  .badge {
+    display: inline-block;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: monospace;
+    letter-spacing: 0.5px;
+  }
+  .badge-low  { background: rgba(57,255,20,0.15); color: var(--success); }
+  .badge-med  { background: rgba(255,200,0,0.15); color: #ffc800; }
+  .badge-high { background: rgba(255,0,110,0.15); color: var(--danger); }
+
+  .icon-founding { color: var(--success); font-size: 16px; }
+  .icon-flag { color: var(--danger); font-size: 16px; }
+  .icon-none { color: var(--text2); }
+
+  /* Stage select */
+  .stage-select {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    padding: 3px 6px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  /* Notes editable */
+  .notes-cell {
+    min-width: 120px;
+    max-width: 200px;
+    white-space: normal;
+    word-break: break-word;
+    cursor: text;
+    color: var(--text2);
+    font-style: italic;
+  }
+  .notes-cell:empty::before { content: 'Click to add…'; color: rgba(255,255,255,0.2); }
+  .notes-cell:focus {
+    outline: 1px solid var(--accent);
+    border-radius: 4px;
+    color: var(--text);
+    font-style: normal;
+  }
+
+  /* Apply button */
+  .btn-apply {
+    background: rgba(57,255,20,0.12);
+    border: 1px solid var(--success);
+    color: var(--success);
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 4px;
+  }
+  .btn-apply:hover { background: rgba(57,255,20,0.25); }
+
+  /* Work mode tag */
+  .mode-tag {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-family: monospace;
+  }
+  .mode-remote  { background: rgba(0,212,255,0.12); color: var(--accent); }
+  .mode-hybrid  { background: rgba(255,200,0,0.12); color: #ffc800; }
+  .mode-onsite  { background: rgba(255,255,255,0.08); color: var(--text2); }
+  .mode-unknown { background: transparent; color: rgba(255,255,255,0.3); }
+
+  /* Loading overlay */
+  #loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,15,26,0.8);
+    z-index: 200;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    backdrop-filter: var(--blur);
+  }
+  #loading-overlay.active { display: flex; }
+
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text { color: var(--text2); font-family: monospace; font-size: 14px; }
+
+  /* Empty state */
+  #empty-state {
+    display: none;
+    padding: 40px;
+    text-align: center;
+    color: var(--text2);
+  }
+  #empty-state h3 { color: var(--text); margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text">Fetching from 4 sources...</div>
+</div>
+
+<!-- Top bar -->
+<header id="topbar">
+  <h1>⚡ OpportunityIntel</h1>
+  <span id="last-refresh">Last refreshed: —</span>
+  <div class="top-actions">
+    <button class="btn-export" onclick="exportCSV()">Export CSV</button>
+    <button class="btn-primary" id="refresh-btn" onclick="triggerRefresh()">Refresh Jobs</button>
+  </div>
+</header>
+
+<!-- Filter bar -->
+<div id="filters">
+  <div class="filter-group">
+    <span class="filter-label">Keyword</span>
+    <input type="text" id="f-keyword" placeholder="Search jobs..." style="width:180px" oninput="debouncedFetch()" />
+  </div>
+
+  <div class="filter-group">
+    <span class="filter-label">Min Match% <span id="v-tech">0</span></span>
+    <div class="slider-wrap">
+      <input type="range" id="f-tech" min="0" max="100" value="0"
+             oninput="document.getElementById('v-tech').textContent=this.value; debouncedFetch()" />
+    </div>
+  </div>
+
+  <div class="filter-group">
+    <span class="filter-label">Min Trajectory% <span id="v-traj">0</span></span>
+    <div class="slider-wrap">
+      <input type="range" id="f-traj" min="0" max="100" value="0"
+             oninput="document.getElementById('v-traj').textContent=this.value; debouncedFetch()" />
+    </div>
+  </div>
+
+  <div class="filter-group">
+    <span class="filter-label">Work Mode</span>
+    <select id="f-mode" onchange="fetchJobs()">
+      <option value="">All</option>
+      <option value="remote">Remote</option>
+      <option value="hybrid">Hybrid</option>
+      <option value="onsite">Onsite</option>
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <span class="filter-label">Source</span>
+    <select id="f-source" onchange="fetchJobs()">
+      <option value="">All</option>
+      <option value="jsearch">JSearch</option>
+      <option value="adzuna">Adzuna</option>
+      <option value="remotive">Remotive</option>
+      <option value="yc">YC</option>
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <span class="filter-label">Stage</span>
+    <select id="f-stage" onchange="fetchJobs()">
+      <option value="">All</option>
+      <option value="not_applied">Not Applied</option>
+      <option value="applied">Applied</option>
+      <option value="oa">OA</option>
+      <option value="interview">Interview</option>
+      <option value="offer">Offer</option>
+      <option value="rejected">Rejected</option>
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <span class="filter-label">Red Flags</span>
+    <div class="toggle-wrap" onclick="toggleFilter('hide-flags')">
+      <div class="toggle on" id="tog-hide-flags"></div>
+      <span style="font-size:12px;color:var(--text2)">Hide</span>
+    </div>
+  </div>
+
+  <div class="filter-group">
+    <span class="filter-label">Founding</span>
+    <div class="toggle-wrap" onclick="toggleFilter('founding-only')">
+      <div class="toggle" id="tog-founding-only"></div>
+      <span style="font-size:12px;color:var(--text2)">Only</span>
+    </div>
+  </div>
+
+  <button class="btn-reset" onclick="resetFilters()">Reset</button>
+  <span id="job-count">Showing — of —</span>
+</div>
+
+<!-- Table -->
+<div id="table-wrap">
+  <div id="empty-state">
+    <h3>No jobs found</h3>
+    <p>Click "Refresh Jobs" to fetch from all sources, or adjust your filters.</p>
+  </div>
+  <table id="jobs-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Title</th>
+        <th>Company</th>
+        <th>Location</th>
+        <th>Work Mode</th>
+        <th class="sortable" data-col="tech_match_score">Match%</th>
+        <th class="sortable" data-col="trajectory_score">Trajectory%</th>
+        <th class="sortable" data-col="competition_score">Competition</th>
+        <th>Founded</th>
+        <th>Red Flag</th>
+        <th class="sortable" data-col="posted_date">Posted</th>
+        <th>Stage</th>
+        <th>Notes</th>
+        <th>Apply</th>
+      </tr>
+    </thead>
+    <tbody id="jobs-body"></tbody>
+  </table>
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let allJobs = [];
+let sortCol = 'trajectory_score';
+let sortDir = 'desc';
+let toggleState = { 'hide-flags': true, 'founding-only': false };
+let debounceTimer = null;
+
+// ── Mock data (shown when API returns 0 or fails) ────────────────────────────
+const MOCK_JOBS = [
+  { id:1, title:'Founding Engineer', company:'StreamlineAI', location:'Remote', work_mode:'remote', source:'yc', tech_match_score:72, trajectory_score:85, competition_score:12, red_flag:false, founding_signal:true, posted_date: new Date(Date.now()-2*3600000).toISOString(), stage:'not_applied', notes:'', url:'#', applied:false },
+  { id:2, title:'Senior Backend Engineer', company:'TechCorp', location:'Bengaluru', work_mode:'hybrid', source:'jsearch', tech_match_score:55, trajectory_score:42, competition_score:38, red_flag:false, founding_signal:false, posted_date: new Date(Date.now()-5*3600000).toISOString(), stage:'applied', notes:'Referral from Priya', url:'#', applied:true },
+  { id:3, title:'Infrastructure Engineer', company:'CloudBase', location:'Hyderabad', work_mode:'remote', source:'adzuna', tech_match_score:83, trajectory_score:61, competition_score:25, red_flag:false, founding_signal:false, posted_date: new Date(Date.now()-1*3600000).toISOString(), stage:'not_applied', notes:'', url:'#', applied:false },
+  { id:4, title:'Software Engineer', company:'OutsourcePro', location:'Mumbai', work_mode:'onsite', source:'adzuna', tech_match_score:22, trajectory_score:10, competition_score:80, red_flag:true, founding_signal:false, posted_date: new Date(Date.now()-48*3600000).toISOString(), stage:'rejected', notes:'Bond required', url:'#', applied:false },
+  { id:5, title:'AI Engineer', company:'NeuralStack', location:'Remote', work_mode:'remote', source:'yc', tech_match_score:91, trajectory_score:78, competition_score:8, red_flag:false, founding_signal:true, posted_date: new Date(Date.now()-0.5*3600000).toISOString(), stage:'interview', notes:'YC W24 startup', url:'#', applied:true },
+  { id:6, title:'Platform Engineer', company:'DevOps Inc', location:'Bengaluru', work_mode:'hybrid', source:'remotive', tech_match_score:67, trajectory_score:45, competition_score:55, red_flag:false, founding_signal:false, posted_date: new Date(Date.now()-10*3600000).toISOString(), stage:'oa', notes:'', url:'#', applied:true },
+  { id:7, title:'Systems Engineer', company:'LowLevel Labs', location:'Remote', work_mode:'remote', source:'jsearch', tech_match_score:88, trajectory_score:90, competition_score:15, red_flag:false, founding_signal:true, posted_date: new Date(Date.now()-3*3600000).toISOString(), stage:'not_applied', notes:'Kernel work!', url:'#', applied:false },
+  { id:8, title:'SDE II', company:'FakeStaffing', location:'Hyderabad', work_mode:'onsite', source:'adzuna', tech_match_score:18, trajectory_score:8, competition_score:90, red_flag:true, founding_signal:false, posted_date: new Date(Date.now()-72*3600000).toISOString(), stage:'not_applied', notes:'', url:'#', applied:false },
+];
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function timeAgo(isoStr) {
+  const diff = (Date.now() - new Date(isoStr)) / 1000;
+  if (diff < 3600) return `${Math.round(diff/60)}m ago`;
+  if (diff < 86400) return `${Math.round(diff/3600)}h ago`;
+  return `${Math.round(diff/86400)}d ago`;
+}
+
+function scoreColor(v) {
+  if (v < 40) return '#ff006e';
+  if (v < 70) return '#ffc800';
+  return '#39ff14';
+}
+
+function scoreBar(value) {
+  const pct = Math.round(value);
+  const color = scoreColor(value);
+  return `<div class="score-bar-wrap">
+    <div class="score-bar"><div class="score-fill" style="width:${pct}%;background:${color}"></div></div>
+    <span class="score-num" style="color:${color}">${pct}%</span>
+  </div>`;
+}
+
+function competitionBadge(score) {
+  if (score < 33) return '<span class="badge badge-low">LOW</span>';
+  if (score < 66) return '<span class="badge badge-med">MED</span>';
+  return '<span class="badge badge-high">HIGH</span>';
+}
+
+function modeTag(mode) {
+  const cls = `mode-${mode || 'unknown'}`;
+  return `<span class="mode-tag ${cls}">${(mode||'?').toUpperCase()}</span>`;
+}
+
+function getFilters() {
+  return {
+    keyword: document.getElementById('f-keyword').value.trim(),
+    min_tech_score: document.getElementById('f-tech').value,
+    min_trajectory_score: document.getElementById('f-traj').value,
+    work_mode: document.getElementById('f-mode').value,
+    source: document.getElementById('f-source').value,
+    stage: document.getElementById('f-stage').value,
+    hide_red_flags: toggleState['hide-flags'],
+    founding_only: toggleState['founding-only'],
+    still_active: true,
+  };
+}
+
+function buildQueryString(filters) {
+  const p = new URLSearchParams();
+  if (filters.keyword) p.set('keyword', filters.keyword);
+  if (filters.min_tech_score > 0) p.set('min_tech_score', filters.min_tech_score);
+  if (filters.min_trajectory_score > 0) p.set('min_trajectory_score', filters.min_trajectory_score);
+  if (filters.work_mode) p.set('work_mode', filters.work_mode);
+  if (filters.source) p.set('source', filters.source);
+  if (filters.stage) p.set('stage', filters.stage);
+  if (filters.hide_red_flags) p.set('hide_red_flags', 'true');
+  if (filters.founding_only) p.set('founding_only', 'true');
+  p.set('still_active', 'true');
+  return p.toString();
+}
+
+// ── Fetch ────────────────────────────────────────────────────────────────────
+async function fetchJobs() {
+  const filters = getFilters();
+  const qs = buildQueryString(filters);
+  try {
+    const resp = await fetch(`/jobs?${qs}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    let jobs = data.jobs || [];
+    if (jobs.length === 0) {
+      jobs = applyClientFilters(MOCK_JOBS, filters);
+      renderJobs(jobs, data.total || 0, true);
+    } else {
+      allJobs = jobs;
+      renderJobs(sortJobs(jobs), data.total || jobs.length, false);
+    }
+  } catch {
+    const jobs = applyClientFilters(MOCK_JOBS, filters);
+    renderJobs(jobs, MOCK_JOBS.length, true);
+  }
+}
+
+function applyClientFilters(jobs, filters) {
+  let out = jobs;
+  if (filters.hide_red_flags) out = out.filter(j => !j.red_flag);
+  if (filters.founding_only) out = out.filter(j => j.founding_signal);
+  if (filters.work_mode) out = out.filter(j => j.work_mode === filters.work_mode);
+  if (filters.source) out = out.filter(j => j.source === filters.source);
+  if (filters.stage) out = out.filter(j => j.stage === filters.stage);
+  if (filters.keyword) {
+    const kw = filters.keyword.toLowerCase();
+    out = out.filter(j => j.title.toLowerCase().includes(kw) || j.company.toLowerCase().includes(kw));
+  }
+  if (filters.min_tech_score > 0) out = out.filter(j => j.tech_match_score >= +filters.min_tech_score);
+  if (filters.min_trajectory_score > 0) out = out.filter(j => j.trajectory_score >= +filters.min_trajectory_score);
+  return sortJobs(out);
+}
+
+function sortJobs(jobs) {
+  return [...jobs].sort((a, b) => {
+    let av = a[sortCol], bv = b[sortCol];
+    if (sortCol === 'posted_date') { av = new Date(av); bv = new Date(bv); }
+    if (av < bv) return sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderJobs(jobs, total, isMock) {
+  const tbody = document.getElementById('jobs-body');
+  const empty = document.getElementById('empty-state');
+  const table = document.getElementById('jobs-table');
+
+  document.getElementById('job-count').textContent =
+    `${isMock ? '(demo) ' : ''}Showing ${jobs.length} of ${total} active jobs`;
+
+  if (jobs.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    table.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  table.style.display = '';
+
+  const stageOptions = ['not_applied','applied','oa','interview','offer','rejected'];
+
+  tbody.innerHTML = jobs.map((j, i) => {
+    const rowClass = j.red_flag ? 'has-red-flag' : j.founding_signal ? 'has-founding' : '';
+    const stageOpts = stageOptions.map(s =>
+      `<option value="${s}" ${j.stage === s ? 'selected' : ''}>${s.replace('_',' ')}</option>`
+    ).join('');
+
+    const isMockRow = isMock;
+
+    return `<tr class="data-row ${rowClass}" data-id="${j.id}" data-mock="${isMockRow}">
+      <td style="color:var(--text2)">${i+1}</td>
+      <td class="td-title">${escHtml(j.title)}</td>
+      <td>${escHtml(j.company)}</td>
+      <td>${escHtml(j.location)}</td>
+      <td>${modeTag(j.work_mode)}</td>
+      <td>${scoreBar(j.tech_match_score)}</td>
+      <td>${scoreBar(j.trajectory_score)}</td>
+      <td>${competitionBadge(j.competition_score)}</td>
+      <td>${j.founding_signal ? '<span class="icon-founding" title="Founding signal">⚡</span>' : '<span class="icon-none">—</span>'}</td>
+      <td>${j.red_flag ? '<span class="icon-flag" title="Red flag detected">🚩</span>' : '<span class="icon-none">—</span>'}</td>
+      <td style="font-family:monospace;color:var(--text2)">${timeAgo(j.posted_date)}</td>
+      <td><select class="stage-select" onchange="updateJob(${j.id}, {stage:this.value}, ${isMockRow})">${stageOpts}</select></td>
+      <td><div class="notes-cell" contenteditable="true" data-id="${j.id}" data-mock="${isMockRow}"
+           onblur="updateJob(${j.id}, {notes:this.textContent.trim()}, ${isMockRow})">${escHtml(j.notes)}</div></td>
+      <td><button class="btn-apply" onclick="window.open('${j.url}','_blank')">Apply →</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+async function updateJob(id, payload, isMock) {
+  if (isMock) return; // no-op for mock data
+  try {
+    await fetch(`/jobs/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    console.error('Update failed:', e);
+  }
+}
+
+async function triggerRefresh() {
+  const btn = document.getElementById('refresh-btn');
+  const overlay = document.getElementById('loading-overlay');
+  btn.disabled = true;
+  overlay.classList.add('active');
+  try {
+    const resp = await fetch('/jobs/refresh', { method: 'POST' });
+    if (resp.ok) {
+      const data = await resp.json();
+      document.getElementById('last-refresh').textContent =
+        `Last refreshed: ${new Date().toLocaleTimeString()} — ${data.new} new, ${data.duplicates} dupes`;
+    }
+    await fetchJobs();
+  } catch {
+    await fetchJobs();
+  } finally {
+    btn.disabled = false;
+    overlay.classList.remove('active');
+  }
+}
+
+function exportCSV() {
+  const filters = getFilters();
+  const qs = buildQueryString(filters);
+  window.open(`/jobs/export?${qs}`);
+}
+
+function debouncedFetch() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(fetchJobs, 300);
+}
+
+function toggleFilter(key) {
+  toggleState[key] = !toggleState[key];
+  const el = document.getElementById(`tog-${key}`);
+  el.classList.toggle('on', toggleState[key]);
+  fetchJobs();
+}
+
+function resetFilters() {
+  document.getElementById('f-keyword').value = '';
+  document.getElementById('f-tech').value = 0;
+  document.getElementById('f-traj').value = 0;
+  document.getElementById('v-tech').textContent = '0';
+  document.getElementById('v-traj').textContent = '0';
+  document.getElementById('f-mode').value = '';
+  document.getElementById('f-source').value = '';
+  document.getElementById('f-stage').value = '';
+  toggleState = { 'hide-flags': true, 'founding-only': false };
+  document.getElementById('tog-hide-flags').classList.add('on');
+  document.getElementById('tog-founding-only').classList.remove('on');
+  fetchJobs();
+}
+
+// ── Sorting ───────────────────────────────────────────────────────────────────
+document.querySelectorAll('th.sortable').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (sortCol === col) sortDir = sortDir === 'desc' ? 'asc' : 'desc';
+    else { sortCol = col; sortDir = 'desc'; }
+
+    document.querySelectorAll('th.sortable').forEach(t => {
+      t.classList.remove('sort-asc', 'sort-desc');
+    });
+    th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+
+    const sorted = sortJobs(allJobs.length ? allJobs : MOCK_JOBS);
+    renderJobs(sorted, sorted.length, !allJobs.length);
+  });
+});
+
+// Mark default sort column
+document.querySelector(`th[data-col="${sortCol}"]`)?.classList.add('sort-desc');
+
+// ── Health polling ────────────────────────────────────────────────────────────
+async function pollHealth() {
+  try {
+    const resp = await fetch('/health');
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.last_refresh) {
+        document.getElementById('last-refresh').textContent =
+          `Last refreshed: ${new Date(data.last_refresh).toLocaleTimeString()} · ${data.db_count} jobs in DB`;
+      }
+    }
+  } catch {}
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+fetchJobs();
+pollHealth();
+setInterval(pollHealth, 60000);
+</script>
+</body>
+</html>

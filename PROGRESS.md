@@ -1,19 +1,20 @@
 # OpportunityIntel — Progress Tracker
 
 ## ✅ Done
-- Nothing yet.
+- **Layer 0 — Scaffold**: directories, requirements.txt, .env.example, .gitignore, PROGRESS.md
+- **Layer 1A — Base schema**: `backend/fetchers/base.py` — NormalizedJob dataclass, canonical_id, seniority/work_mode/experience helpers
+- **Layer 1B — Fetchers**: jsearch.py, adzuna.py, remotive.py, yc_rss.py — all fully async, silent error handling
+- **Layer 2 — Pipeline**: dedup.py (exact + rapidfuzz), score_tech.py, score_trajectory.py, detect_flags.py, orchestrator.py
+- **Layer 3 — Database**: models.py (SQLAlchemy Job), crud.py (upsert, filters, update, stats, CSV), session.py (AsyncSession), alembic full setup + initial migration applied
+- **Layer 4 — API**: main.py — 5 endpoints, APScheduler auto-refresh, CORS, static file serving
+- **Layer 5 — Frontend**: frontend/index.html — full dark-mode dashboard, all filters, sorting, inline editing, mock data fallback
+- **README.md**: Setup guide, API reference, scoring explanation
 
 ## 🔄 In Progress
-- **Layer 0 — Scaffold**: Creating directory structure, requirements.txt, .env.example
+- End-to-end verification (server running, all endpoints tested)
 
 ## ⏳ Remaining
-- Layer 1A: base.py (NormalizedJob dataclass)
-- Layer 1B: Fetchers (jsearch, adzuna, remotive, yc_rss)
-- Layer 2: Pipeline (dedup, score_tech, score_trajectory, detect_flags, orchestrator)
-- Layer 3: Database (models, crud, session, alembic)
-- Layer 4: API (main.py — FastAPI + APScheduler)
-- Layer 5: Frontend (index.html)
-- README.md + end-to-end verification
+- Final GitHub push with README + frontend
 
 ## ⚠️ Architecture Decisions
 - DB: aiosqlite + SQLAlchemy AsyncSession (fully async)
