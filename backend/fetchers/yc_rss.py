@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
 from typing import List
 
 import aiohttp
-import feedparser
 
 from .base import (
     NormalizedJob,
@@ -20,15 +17,9 @@ from .base import (
 
 logger = logging.getLogger(__name__)
 
-_RSS_URL = "https://news.ycombinator.com/jobs.rss"
+# Algolia HN search API — reliable replacement for the defunct jobs.rss
+_HN_API = "https://hn.algolia.com/api/v1/search_by_date"
 _SEARCH_LOWER = [t.lower() for t in SEARCH_TITLES]
-
-
-def _parse_posted(entry) -> datetime:
-    try:
-        return parsedate_to_datetime(entry.get("published", "")).replace(tzinfo=timezone.utc)
-    except Exception:
-        return datetime.now(timezone.utc)
 
 
 def _matches_search(title: str) -> bool:
@@ -36,32 +27,68 @@ def _matches_search(title: str) -> bool:
     return any(term in low for term in _SEARCH_LOWER)
 
 
-def _parse_feed(content: bytes) -> feedparser.FeedParserDict:
-    return feedparser.parse(content)
+def _parse_posted(iso: str | None) -> datetime:
+    if not iso:
+        return datetime.now(timezone.utc)
+    try:
+        return datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    except Exception:
+        return datetime.now(timezone.utc)
+
+
+def _extract_company(title: str) -> str:
+    # HN job titles are often "Role at Company (YC SXX)" or "Company is hiring Role"
+    if " at " in title:
+        return title.split(" at ", 1)[1].split("(")[0].strip()
+    if " is hiring" in title.lower():
+        return title.lower().split(" is hiring")[0].strip().title()
+    return "YC Company"
+
+
+def _extract_location(text: str) -> str:
+    low = text.lower()
+    if "remote" in low:
+        return "Remote"
+    if "san francisco" in low or "sf, ca" in low:
+        return "San Francisco"
+    if "new york" in low or "nyc" in low:
+        return "New York"
+    if "bengaluru" in low or "bangalore" in low:
+        return "Bengaluru"
+    return "Unknown"
 
 
 async def fetch(session: aiohttp.ClientSession) -> List[NormalizedJob]:
+    jobs: List[NormalizedJob] = []
+    seen_urls: set[str] = set()
+
     try:
-        async with session.get(_RSS_URL, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+        params = {
+            "tags": "job",
+            "hitsPerPage": "100",
+        }
+        async with session.get(_HN_API, params=params, timeout=aiohttp.ClientTimeout(total=15)) as resp:
             if resp.status != 200:
-                logger.warning("YC RSS: HTTP %s", resp.status)
+                logger.warning("YC/HN Algolia: HTTP %s", resp.status)
                 return []
-            content = await resp.read()
+            data = await resp.json()
 
-        loop = asyncio.get_event_loop()
-        feed = await loop.run_in_executor(None, _parse_feed, content)
-
-        jobs: List[NormalizedJob] = []
-        for entry in feed.entries:
-            title = entry.get("title") or ""
+        for hit in data.get("hits", []):
+            title = hit.get("title") or ""
             if not _matches_search(title):
                 continue
 
-            url = entry.get("link") or ""
-            raw_desc = entry.get("summary") or ""
+            # HN jobs link to the HN item page; use objectID to build URL
+            hn_id = hit.get("objectID") or ""
+            url = hit.get("url") or f"https://news.ycombinator.com/item?id={hn_id}"
+            if not url or url in seen_urls:
+                continue
+            seen_urls.add(url)
+
+            raw_desc = hit.get("story_text") or hit.get("comment_text") or ""
             company = _extract_company(title)
-            location = _extract_location(raw_desc)
-            posted = _parse_posted(entry)
+            location = _extract_location(raw_desc + " " + title)
+            posted = _parse_posted(hit.get("created_at"))
 
             jobs.append(NormalizedJob(
                 title=title,
@@ -77,30 +104,12 @@ async def fetch(session: aiohttp.ClientSession) -> List[NormalizedJob]:
                 canonical_id=compute_canonical_id(company, title, location),
                 first_seen=datetime.now(timezone.utc),
                 last_seen=datetime.now(timezone.utc),
-                founding_signal=True,  # all YC jobs get founding_signal by default
+                founding_signal=True,
             ))
 
-        logger.info("YC RSS: fetched %d matching jobs", len(jobs))
+        logger.info("YC/HN: fetched %d matching jobs", len(jobs))
         return jobs
 
     except Exception as exc:
-        logger.warning("YC RSS: error: %s", exc)
+        logger.warning("YC/HN: error: %s", exc)
         return []
-
-
-def _extract_company(title: str) -> str:
-    # YC RSS titles are often "Role at Company (YC SXX)"
-    if " at " in title:
-        return title.split(" at ", 1)[1].split("(")[0].strip()
-    return "YC Company"
-
-
-def _extract_location(summary: str) -> str:
-    low = summary.lower()
-    if "remote" in low:
-        return "Remote"
-    if "san francisco" in low or "sf" in low:
-        return "San Francisco"
-    if "new york" in low or "nyc" in low:
-        return "New York"
-    return "Unknown"
