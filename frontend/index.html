@@ -691,22 +691,41 @@ async function updateJob(id, payload, isMock) {
 async function triggerRefresh() {
   const btn = document.getElementById('refresh-btn');
   const overlay = document.getElementById('loading-overlay');
+  const loadingText = overlay.querySelector('.loading-text');
   btn.disabled = true;
   overlay.classList.add('active');
+  loadingText.textContent = 'Fetching from 4 sources...';
+
   try {
-    const resp = await fetch('/jobs/refresh', { method: 'POST' });
-    if (resp.ok) {
-      const data = await resp.json();
-      document.getElementById('last-refresh').textContent =
-        `Last refreshed: ${new Date().toLocaleTimeString()} — ${data.new} new, ${data.duplicates} dupes`;
-    }
-    await fetchJobs();
-  } catch {
-    await fetchJobs();
-  } finally {
-    btn.disabled = false;
-    overlay.classList.remove('active');
-  }
+    // Fire-and-forget — server returns immediately, pipeline runs in background
+    await fetch('/jobs/refresh', { method: 'POST' });
+  } catch { /* ignore */ }
+
+  // Poll /health every 2s until refresh_running becomes false
+  let dots = 0;
+  const pollInterval = setInterval(async () => {
+    dots = (dots + 1) % 4;
+    loadingText.textContent = 'Fetching from 4 sources' + '.'.repeat(dots + 1);
+    try {
+      const h = await fetch('/health');
+      if (!h.ok) return;
+      const data = await h.json();
+
+      if (!data.refresh_running) {
+        clearInterval(pollInterval);
+        btn.disabled = false;
+        overlay.classList.remove('active');
+
+        const stats = data.last_refresh_stats;
+        const ts = data.last_refresh ? new Date(data.last_refresh).toLocaleTimeString() : '—';
+        document.getElementById('last-refresh').textContent = stats
+          ? `Last refreshed: ${ts} — ${stats.new} new, ${stats.duplicates} dupes`
+          : `Last refreshed: ${ts}`;
+
+        await fetchJobs();
+      }
+    } catch { /* keep polling */ }
+  }, 2000);
 }
 
 function exportCSV() {
@@ -768,9 +787,12 @@ async function pollHealth() {
     const resp = await fetch('/health');
     if (resp.ok) {
       const data = await resp.json();
-      if (data.last_refresh) {
-        document.getElementById('last-refresh').textContent =
-          `Last refreshed: ${new Date(data.last_refresh).toLocaleTimeString()} · ${data.db_count} jobs in DB`;
+      if (data.last_refresh && !data.refresh_running) {
+        const stats = data.last_refresh_stats;
+        const ts = new Date(data.last_refresh).toLocaleTimeString();
+        document.getElementById('last-refresh').textContent = stats
+          ? `Last refreshed: ${ts} · ${data.db_count} jobs · ${stats.new} new`
+          : `Last refreshed: ${ts} · ${data.db_count} jobs in DB`;
       }
     }
   } catch {}

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -27,18 +28,32 @@ logging.basicConfig(level=logging.INFO)
 # ── App state ────────────────────────────────────────────────────────────────
 
 _last_refresh: datetime | None = None
+_refresh_running: bool = False
+_last_refresh_stats: dict | None = None
 _scheduler = AsyncIOScheduler()
 
 
-async def _scheduled_refresh() -> None:
-    global _last_refresh
-    logger.info("Auto-refresh triggered by scheduler")
-    async with AsyncSessionLocal() as session:
-        try:
-            await run_pipeline(session)
+async def _run_refresh() -> None:
+    global _last_refresh, _refresh_running, _last_refresh_stats
+    if _refresh_running:
+        logger.info("Refresh already in progress, skipping")
+        return
+    _refresh_running = True
+    try:
+        async with AsyncSessionLocal() as session:
+            stats = await run_pipeline(session)
             _last_refresh = datetime.now(timezone.utc)
-        except Exception as exc:
-            logger.error("Scheduled refresh failed: %s", exc)
+            _last_refresh_stats = stats
+            logger.info("Refresh complete: %s", stats)
+    except Exception as exc:
+        logger.error("Refresh failed: %s", exc)
+    finally:
+        _refresh_running = False
+
+
+async def _scheduled_refresh() -> None:
+    logger.info("Auto-refresh triggered by scheduler")
+    await _run_refresh()
 
 
 # ── Lifespan ─────────────────────────────────────────────────────────────────
@@ -148,15 +163,11 @@ async def list_jobs(
 
 
 @app.post("/jobs/refresh")
-async def refresh_jobs(session: AsyncSession = Depends(get_session)):
-    global _last_refresh
-    try:
-        stats = await run_pipeline(session)
-        _last_refresh = datetime.now(timezone.utc)
-        return {**stats, "timestamp": _last_refresh.isoformat()}
-    except Exception as exc:
-        logger.error("Manual refresh failed: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc))
+async def refresh_jobs():
+    if _refresh_running:
+        return {"status": "already_running", "message": "Refresh already in progress"}
+    asyncio.create_task(_run_refresh())
+    return {"status": "started", "message": "Refresh started in background"}
 
 
 @app.patch("/jobs/{job_id}", response_model=JobOut)
@@ -211,6 +222,8 @@ async def health(session: AsyncSession = Depends(get_session)):
         "status": "ok",
         "db_count": stats["total"],
         "last_refresh": _last_refresh.isoformat() if _last_refresh else None,
+        "refresh_running": _refresh_running,
+        "last_refresh_stats": _last_refresh_stats,
     }
 
 
