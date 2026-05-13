@@ -27,10 +27,13 @@ _WEIGHTS: dict[str, int] = {
     "typescript": 5,
 }
 
-_MAX_SCORE: float = float(sum(_WEIGHTS.values()))
+# Calibrated to ~30% of theoretical max so that a job mentioning 4-5 strong
+# keywords (e.g. python+docker+kubernetes+redis) scores around 50%, and an
+# exceptional job scores 80-100%. Using full sum made avg scores ~7%.
+_CALIBRATED_MAX: float = float(sum(_WEIGHTS.values())) * 0.30
 
 
 def score_tech(job: NormalizedJob) -> None:
     text = job.raw_description.lower()
     matched = sum(w for kw, w in _WEIGHTS.items() if kw in text)
-    job.tech_match_score = min(100.0, (matched / _MAX_SCORE) * 100)
+    job.tech_match_score = min(100.0, (matched / _CALIBRATED_MAX) * 100)

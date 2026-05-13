@@ -37,8 +37,9 @@ _STARTUP_WEIGHTS: dict[str, int] = {
     "backed": 6,
 }
 
-_SYSTEMS_MAX: float = float(sum(_SYSTEMS_WEIGHTS.values()))
-_STARTUP_MAX: float = float(sum(_STARTUP_WEIGHTS.values()))
+# Calibrated to ~35% of theoretical max for the same reason as score_tech.
+_SYSTEMS_MAX: float = float(sum(_SYSTEMS_WEIGHTS.values())) * 0.35
+_STARTUP_MAX: float = float(sum(_STARTUP_WEIGHTS.values())) * 0.33
 
 
 def score_trajectory(job: NormalizedJob) -> None:
