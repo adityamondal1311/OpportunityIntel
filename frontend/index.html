@@ -692,13 +692,18 @@ function renderJobs(jobs, total, isMock) {
       <td><select class="stage-select" onchange="updateJob(${j.id}, {stage:this.value}, ${isMockRow})">${stageOpts}</select></td>
       <td><div class="notes-cell" contenteditable="true" data-id="${j.id}" data-mock="${isMockRow}"
            onblur="updateJob(${j.id}, {notes:this.textContent.trim()}, ${isMockRow})">${escHtml(j.notes)}</div></td>
-      <td><button class="btn-apply" onclick="window.open('${j.url}','_blank')">Apply →</button></td>
+      <td><button class="btn-apply" data-url="${escHtml(j.url)}" onclick="applyJob(this)">Apply →</button></td>
     </tr>`;
   }).join('');
 }
 
 function escHtml(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function applyJob(btn) {
+  const url = btn.dataset.url;
+  if (url && url !== '#') window.open(url, '_blank');
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────────
