@@ -458,6 +458,17 @@
     </div>
   </div>
 
+  <div class="filter-group">
+    <span class="filter-label">Max Exp</span>
+    <select id="f-exp" onchange="fetchJobs()">
+      <option value="">Any</option>
+      <option value="1">≤ 1 yr</option>
+      <option value="2">≤ 2 yrs</option>
+      <option value="3">≤ 3 yrs</option>
+      <option value="5">≤ 5 yrs</option>
+    </select>
+  </div>
+
   <button class="btn-reset" onclick="resetFilters()">Reset</button>
   <span id="job-count">Showing — of —</span>
 </div>
@@ -479,6 +490,7 @@
         <th class="sortable" data-col="tech_match_score">Match%</th>
         <th class="sortable" data-col="trajectory_score">Trajectory%</th>
         <th class="sortable" data-col="competition_score">Competition</th>
+        <th class="sortable" data-col="experience_required">Exp</th>
         <th>Founded</th>
         <th>Red Flag</th>
         <th class="sortable" data-col="posted_date">Posted</th>
@@ -501,17 +513,28 @@ let debounceTimer = null;
 
 // ── Mock data (shown when API returns 0 or fails) ────────────────────────────
 const MOCK_JOBS = [
-  { id:1, title:'Founding Engineer', company:'StreamlineAI', location:'Remote', work_mode:'remote', source:'yc', tech_match_score:72, trajectory_score:85, competition_score:12, red_flag:false, founding_signal:true, posted_date: new Date(Date.now()-2*3600000).toISOString(), stage:'not_applied', notes:'', url:'#', applied:false },
-  { id:2, title:'Senior Backend Engineer', company:'TechCorp', location:'Bengaluru', work_mode:'hybrid', source:'jsearch', tech_match_score:55, trajectory_score:42, competition_score:38, red_flag:false, founding_signal:false, posted_date: new Date(Date.now()-5*3600000).toISOString(), stage:'applied', notes:'Referral from Priya', url:'#', applied:true },
-  { id:3, title:'Infrastructure Engineer', company:'CloudBase', location:'Hyderabad', work_mode:'remote', source:'adzuna', tech_match_score:83, trajectory_score:61, competition_score:25, red_flag:false, founding_signal:false, posted_date: new Date(Date.now()-1*3600000).toISOString(), stage:'not_applied', notes:'', url:'#', applied:false },
-  { id:4, title:'Software Engineer', company:'OutsourcePro', location:'Mumbai', work_mode:'onsite', source:'adzuna', tech_match_score:22, trajectory_score:10, competition_score:80, red_flag:true, founding_signal:false, posted_date: new Date(Date.now()-48*3600000).toISOString(), stage:'rejected', notes:'Bond required', url:'#', applied:false },
-  { id:5, title:'AI Engineer', company:'NeuralStack', location:'Remote', work_mode:'remote', source:'yc', tech_match_score:91, trajectory_score:78, competition_score:8, red_flag:false, founding_signal:true, posted_date: new Date(Date.now()-0.5*3600000).toISOString(), stage:'interview', notes:'YC W24 startup', url:'#', applied:true },
-  { id:6, title:'Platform Engineer', company:'DevOps Inc', location:'Bengaluru', work_mode:'hybrid', source:'remotive', tech_match_score:67, trajectory_score:45, competition_score:55, red_flag:false, founding_signal:false, posted_date: new Date(Date.now()-10*3600000).toISOString(), stage:'oa', notes:'', url:'#', applied:true },
-  { id:7, title:'Systems Engineer', company:'LowLevel Labs', location:'Remote', work_mode:'remote', source:'jsearch', tech_match_score:88, trajectory_score:90, competition_score:15, red_flag:false, founding_signal:true, posted_date: new Date(Date.now()-3*3600000).toISOString(), stage:'not_applied', notes:'Kernel work!', url:'#', applied:false },
-  { id:8, title:'SDE II', company:'FakeStaffing', location:'Hyderabad', work_mode:'onsite', source:'adzuna', tech_match_score:18, trajectory_score:8, competition_score:90, red_flag:true, founding_signal:false, posted_date: new Date(Date.now()-72*3600000).toISOString(), stage:'not_applied', notes:'', url:'#', applied:false },
+  { id:1, title:'Founding Engineer', company:'StreamlineAI', location:'Remote', work_mode:'remote', source:'yc', tech_match_score:72, trajectory_score:85, competition_score:12, red_flag:false, founding_signal:true, posted_date: new Date(Date.now()-2*3600000).toISOString(), stage:'not_applied', notes:'', url:'#', applied:false, experience_required:'0-2 years' },
+  { id:2, title:'Senior Backend Engineer', company:'TechCorp', location:'Bengaluru', work_mode:'hybrid', source:'jsearch', tech_match_score:55, trajectory_score:42, competition_score:38, red_flag:false, founding_signal:false, posted_date: new Date(Date.now()-5*3600000).toISOString(), stage:'applied', notes:'Referral from Priya', url:'#', applied:true, experience_required:'5+ years' },
+  { id:3, title:'Infrastructure Engineer', company:'CloudBase', location:'Hyderabad', work_mode:'remote', source:'adzuna', tech_match_score:83, trajectory_score:61, competition_score:25, red_flag:false, founding_signal:false, posted_date: new Date(Date.now()-1*3600000).toISOString(), stage:'not_applied', notes:'', url:'#', applied:false, experience_required:'2-4 years' },
+  { id:4, title:'Software Engineer', company:'OutsourcePro', location:'Mumbai', work_mode:'onsite', source:'adzuna', tech_match_score:22, trajectory_score:10, competition_score:80, red_flag:true, founding_signal:false, posted_date: new Date(Date.now()-48*3600000).toISOString(), stage:'rejected', notes:'Bond required', url:'#', applied:false, experience_required:'10+ years' },
+  { id:5, title:'AI Engineer', company:'NeuralStack', location:'Remote', work_mode:'remote', source:'yc', tech_match_score:91, trajectory_score:78, competition_score:8, red_flag:false, founding_signal:true, posted_date: new Date(Date.now()-0.5*3600000).toISOString(), stage:'interview', notes:'YC W24 startup', url:'#', applied:true, experience_required:'1-3 years' },
+  { id:6, title:'Platform Engineer', company:'DevOps Inc', location:'Bengaluru', work_mode:'hybrid', source:'remotive', tech_match_score:67, trajectory_score:45, competition_score:55, red_flag:false, founding_signal:false, posted_date: new Date(Date.now()-10*3600000).toISOString(), stage:'oa', notes:'', url:'#', applied:true, experience_required:'3-5 years' },
+  { id:7, title:'Systems Engineer', company:'LowLevel Labs', location:'Remote', work_mode:'remote', source:'jsearch', tech_match_score:88, trajectory_score:90, competition_score:15, red_flag:false, founding_signal:true, posted_date: new Date(Date.now()-3*3600000).toISOString(), stage:'not_applied', notes:'Kernel work!', url:'#', applied:false, experience_required:'Not specified' },
+  { id:8, title:'SDE II', company:'FakeStaffing', location:'Hyderabad', work_mode:'onsite', source:'adzuna', tech_match_score:18, trajectory_score:8, competition_score:90, red_flag:true, founding_signal:false, posted_date: new Date(Date.now()-72*3600000).toISOString(), stage:'not_applied', notes:'', url:'#', applied:false, experience_required:'0-1 years' },
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+function expToNum(s) {
+  if (!s || s === 'Not specified') return 99;
+  const range = s.match(/(\d+)\s*[-–]\s*(\d+)/);
+  if (range) return parseInt(range[1]);
+  const plus = s.match(/(\d+)\+/);
+  if (plus) return parseInt(plus[1]);
+  const single = s.match(/(\d+)/);
+  if (single) return parseInt(single[1]);
+  return 99;
+}
+
 function timeAgo(isoStr) {
   const diff = (Date.now() - new Date(isoStr)) / 1000;
   if (diff < 3600) return `${Math.round(diff/60)}m ago`;
@@ -553,6 +576,7 @@ function getFilters() {
     work_mode: document.getElementById('f-mode').value,
     source: document.getElementById('f-source').value,
     stage: document.getElementById('f-stage').value,
+    max_exp: document.getElementById('f-exp').value,
     hide_red_flags: toggleState['hide-flags'],
     founding_only: toggleState['founding-only'],
     still_active: true,
@@ -609,6 +633,7 @@ function applyClientFilters(jobs, filters) {
   }
   if (filters.min_tech_score > 0) out = out.filter(j => j.tech_match_score >= +filters.min_tech_score);
   if (filters.min_trajectory_score > 0) out = out.filter(j => j.trajectory_score >= +filters.min_trajectory_score);
+  if (filters.max_exp) out = out.filter(j => expToNum(j.experience_required) <= parseInt(filters.max_exp));
   return sortJobs(out);
 }
 
@@ -616,6 +641,7 @@ function sortJobs(jobs) {
   return [...jobs].sort((a, b) => {
     let av = a[sortCol], bv = b[sortCol];
     if (sortCol === 'posted_date') { av = new Date(av); bv = new Date(bv); }
+    if (sortCol === 'experience_required') { av = expToNum(av); bv = expToNum(bv); }
     if (av < bv) return sortDir === 'asc' ? -1 : 1;
     if (av > bv) return sortDir === 'asc' ? 1 : -1;
     return 0;
@@ -659,6 +685,7 @@ function renderJobs(jobs, total, isMock) {
       <td>${scoreBar(j.tech_match_score)}</td>
       <td>${scoreBar(j.trajectory_score)}</td>
       <td>${competitionBadge(j.competition_score)}</td>
+      <td style="font-family:monospace;font-size:12px;color:var(--text2);white-space:nowrap">${escHtml(j.experience_required || 'N/A')}</td>
       <td>${j.founding_signal ? '<span class="icon-founding" title="Founding signal">⚡</span>' : '<span class="icon-none">—</span>'}</td>
       <td>${j.red_flag ? '<span class="icon-flag" title="Red flag detected">🚩</span>' : '<span class="icon-none">—</span>'}</td>
       <td style="font-family:monospace;color:var(--text2)">${timeAgo(j.posted_date)}</td>
@@ -755,6 +782,7 @@ function resetFilters() {
   document.getElementById('f-mode').value = '';
   document.getElementById('f-source').value = '';
   document.getElementById('f-stage').value = '';
+  document.getElementById('f-exp').value = '';
   toggleState = { 'hide-flags': true, 'founding-only': false };
   document.getElementById('tog-hide-flags').classList.add('on');
   document.getElementById('tog-founding-only').classList.remove('on');
